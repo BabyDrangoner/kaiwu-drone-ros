@@ -41,6 +41,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument("max_step",         default_value="1000"),
         DeclareLaunchArgument("battery_max",      default_value="250"),
         DeclareLaunchArgument("step_seconds",     default_value="0.12"),
+        DeclareLaunchArgument("control_rate_hz",  default_value="30.0"),
         DeclareLaunchArgument("throttle_step",    default_value="true"),
         DeclareLaunchArgument("anti_oscillation", default_value="true"),
         DeclareLaunchArgument("use_motion_controller", default_value="false"),
@@ -118,6 +119,7 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(LaunchConfiguration("use_motion_controller")),
         parameters=[{
             "step_seconds": LaunchConfiguration("step_seconds"),
+            "control_rate_hz": LaunchConfiguration("control_rate_hz"),
             "throttle_step": ParameterValue(LaunchConfiguration("throttle_step"), value_type=bool),
             "anti_oscillation": ParameterValue(LaunchConfiguration("anti_oscillation"), value_type=bool),
         }],

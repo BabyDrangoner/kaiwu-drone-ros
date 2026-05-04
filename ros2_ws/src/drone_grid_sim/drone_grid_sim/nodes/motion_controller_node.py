@@ -1,18 +1,16 @@
-"""motion_controller_node — turn the policy's discrete action id into a
-controller-style command (Twist) **and** feed the env one cell step.
+"""motion_controller_node — execute policy action as continuous motion first.
 
-Why both?
-~~~~~~~~~
-The user wants the network output to be *executed by a motion controller*.
-We emit a `geometry_msgs/Twist` with cell-per-second velocity (so a real
-drone/car node could subscribe and integrate), and at the same time emit a
-discrete `Int8` cell-step command that closes the loop with grid_env_node.
+In strict mode (throttle_step=true), a policy action starts a continuous
+velocity command for one cell duration, and only after the motion window is
+finished do we emit one /drone/cmd_step to advance the grid env.
+
+This enforces: one policy decision -> one destination reached -> next policy.
 
 Topics
 ------
 in : /drone/action     std_msgs/Int8       (raw policy output 0..7)
-out: /drone/cmd_vel    geometry_msgs/Twist (continuous-style controller cmd)
-out: /drone/cmd_step   std_msgs/Int8       (discrete step echoed to env)
+out: /drone/cmd_vel    geometry_msgs/Twist (continuous controller command)
+out: /drone/cmd_step   std_msgs/Int8       (step committed when arrived)
 """
 
 from __future__ import annotations
@@ -42,11 +40,13 @@ class MotionControllerNode(Node):
     def __init__(self) -> None:
         super().__init__("motion_controller_node")
         self.declare_parameter("step_seconds", 0.2)  # time to traverse one cell
+        self.declare_parameter("control_rate_hz", 30.0)
         self.declare_parameter("publish_twist", True)
         self.declare_parameter("throttle_step", True)
         self.declare_parameter("anti_oscillation", True)
 
         self.step_seconds = float(self.get_parameter("step_seconds").value)
+        self.control_rate_hz = float(self.get_parameter("control_rate_hz").value)
         self.publish_twist = bool(self.get_parameter("publish_twist").value)
         self.throttle_step = bool(self.get_parameter("throttle_step").value)
         self.anti_oscillation = bool(self.get_parameter("anti_oscillation").value)
@@ -56,12 +56,15 @@ class MotionControllerNode(Node):
         self.create_subscription(Int8, "/drone/action", self._on_action, 10)
 
         self._pending_action: int | None = None
-        self._last_emit_ns: int = 0
         self._last_emitted_action: int | None = None
-        self._emit_period_ns: int = max(int(self.step_seconds * 1e9), int(1e7))
-        self._timer = self.create_timer(max(self.step_seconds, 0.01), self._on_tick)
+        self._active_action: int | None = None
+        self._motion_deadline_ns: int = 0
+        self._motion_window_ns: int = max(int(self.step_seconds * 1e9), int(1e7))
+        timer_period = 1.0 / max(self.control_rate_hz, 1.0)
+        self._timer = self.create_timer(timer_period, self._on_tick)
         self.get_logger().info(
-            f"[ctrl] throttle_step={self.throttle_step} anti_oscillation={self.anti_oscillation} step_seconds={self.step_seconds:.3f}"
+            f"[ctrl] throttle_step={self.throttle_step} anti_oscillation={self.anti_oscillation} "
+            f"step_seconds={self.step_seconds:.3f} control_rate_hz={self.control_rate_hz:.1f}"
         )
 
     def _on_action(self, msg: Int8) -> None:
@@ -70,28 +73,55 @@ class MotionControllerNode(Node):
             self.get_logger().warning(f"[ctrl] dropping out-of-range action {action}")
             return
 
-        self._pending_action = action
         if not self.throttle_step:
             self._emit_step(action)
+            return
+
+        # In strict arrival mode, reject/replace actions while one motion is in flight.
+        if self._active_action is not None:
+            self._pending_action = action
+            return
+
+        self._start_motion(action)
+
+    def _start_motion(self, action: int) -> None:
+        action = self._sanitize_action(action)
+        self._active_action = action
+        now_ns = self.get_clock().now().nanoseconds
+        self._motion_deadline_ns = now_ns + self._motion_window_ns
+        if self.publish_twist:
+            self.pub_vel.publish(self._twist_for_action(action))
 
     def _emit_step(self, action: int) -> None:
+        action = self._sanitize_action(action)
+
+        if self.publish_twist:
+            self.pub_vel.publish(self._twist_for_action(action))
+        self.pub_step.publish(Int8(data=action))
+        self._last_emitted_action = action
+
+    def _sanitize_action(self, action: int) -> int:
         if (
             self.anti_oscillation
             and self._last_emitted_action is not None
             and action == self._opposite_action(self._last_emitted_action)
         ):
             # Keep previous heading for one more tick to break A<->B ping-pong.
-            action = self._last_emitted_action
+            return self._last_emitted_action
+        return action
 
-        if self.publish_twist:
-            dx, dz = ACTION_DELTA[action]
-            tw = Twist()
-            tw.linear.x = dx / max(self.step_seconds, 1e-3)
-            tw.linear.y = -dz / max(self.step_seconds, 1e-3)  # ROS y is north
-            tw.angular.z = math.atan2(-dz, dx)
-            self.pub_vel.publish(tw)
-        self.pub_step.publish(Int8(data=action))
-        self._last_emitted_action = action
+    def _twist_for_action(self, action: int) -> Twist:
+        dx, dz = ACTION_DELTA[action]
+        tw = Twist()
+        tw.linear.x = dx / max(self.step_seconds, 1e-3)
+        tw.linear.y = -dz / max(self.step_seconds, 1e-3)  # ROS y is north
+        tw.angular.z = math.atan2(-dz, dx)
+        return tw
+
+    def _publish_stop(self) -> None:
+        if not self.publish_twist:
+            return
+        self.pub_vel.publish(Twist())
 
     @staticmethod
     def _opposite_action(action: int) -> int:
@@ -101,15 +131,33 @@ class MotionControllerNode(Node):
     def _on_tick(self) -> None:
         if not self.throttle_step:
             return
-        if self._pending_action is None:
+
+        if self._active_action is None:
+            if self._pending_action is None:
+                return
+            pending = int(self._pending_action)
+            self._pending_action = None
+            self._start_motion(pending)
             return
+
         now_ns = self.get_clock().now().nanoseconds
-        if self._last_emit_ns and (now_ns - self._last_emit_ns) < self._emit_period_ns:
+        action = int(self._active_action)
+
+        # Keep sending velocity while moving to destination.
+        if now_ns < self._motion_deadline_ns:
+            if self.publish_twist:
+                self.pub_vel.publish(self._twist_for_action(action))
             return
-        action = int(self._pending_action)
+
+        # Arrival reached -> stop continuous command and commit one env step.
+        self._publish_stop()
+        self.pub_step.publish(Int8(data=action))
+        self._last_emitted_action = action
+        self._active_action = None
+
+        # Drop pre-arrival queued actions to force a fresh policy decision
+        # from the newly reached state.
         self._pending_action = None
-        self._emit_step(action)
-        self._last_emit_ns = now_ns
 
 
 def main() -> None:
