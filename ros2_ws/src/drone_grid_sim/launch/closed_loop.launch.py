@@ -56,6 +56,15 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument("record_gif", default_value="false"),
         DeclareLaunchArgument("gif_out_dir", default_value="ros2_ws/gif_out"),
         DeclareLaunchArgument("show_all_elements", default_value="false"),
+        DeclareLaunchArgument("fpv_enabled", default_value="true"),
+        DeclareLaunchArgument("fpv_topic", default_value="/drone/fpv/image"),
+        DeclareLaunchArgument("fpv_frame", default_value="drone_fpv"),
+        DeclareLaunchArgument("fpv_width", default_value="240"),
+        DeclareLaunchArgument("fpv_height", default_value="160"),
+        DeclareLaunchArgument("fpv_fov_deg", default_value="90.0"),
+        DeclareLaunchArgument("fpv_max_range_cells", default_value="18.0"),
+        DeclareLaunchArgument("fpv_cam_height", default_value="1.2"),
+        DeclareLaunchArgument("fpv_forward_offset", default_value="0.35"),
         # RACER-style frame_id
         DeclareLaunchArgument("frame_id", default_value="map"),
         # rviz:=true  launches RViz2 for interactive 2D city-grid view.
@@ -137,6 +146,15 @@ def generate_launch_description() -> LaunchDescription:
             "show_all_elements": ParameterValue(LaunchConfiguration("show_all_elements"), value_type=bool),
             "render_ack_topic": ParameterValue(LaunchConfiguration("render_ack_topic"), value_type=str),
             "motion_interp_step_seconds": LaunchConfiguration("step_seconds"),
+            "fpv_enabled": ParameterValue(LaunchConfiguration("fpv_enabled"), value_type=bool),
+            "fpv_topic": ParameterValue(LaunchConfiguration("fpv_topic"), value_type=str),
+            "fpv_frame": ParameterValue(LaunchConfiguration("fpv_frame"), value_type=str),
+            "fpv_width": LaunchConfiguration("fpv_width"),
+            "fpv_height": LaunchConfiguration("fpv_height"),
+            "fpv_fov_deg": LaunchConfiguration("fpv_fov_deg"),
+            "fpv_max_range_cells": LaunchConfiguration("fpv_max_range_cells"),
+            "fpv_cam_height": LaunchConfiguration("fpv_cam_height"),
+            "fpv_forward_offset": LaunchConfiguration("fpv_forward_offset"),
         }],
     )
 

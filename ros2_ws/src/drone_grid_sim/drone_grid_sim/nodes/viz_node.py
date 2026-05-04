@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import collections
 import json
+import math
 import os
 import struct
 import time
@@ -27,10 +28,11 @@ from rclpy.node import Node
 from rclpy.qos import (
     QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy,
 )
-from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs.msg import PointCloud2, PointField, Image
 from std_msgs.msg import ColorRGBA, String, Int32
-from geometry_msgs.msg import Point, Vector3, Twist
+from geometry_msgs.msg import Point, Vector3, Twist, TransformStamped
 from visualization_msgs.msg import Marker, MarkerArray
+from tf2_ros import TransformBroadcaster
 
 from drone_grid_sim._bootstrap import bootstrap
 
@@ -530,6 +532,15 @@ class VizNode(Node):
         self.declare_parameter("motion_interp_enabled", True)
         self.declare_parameter("motion_interp_step_seconds", 0.2)
         self.declare_parameter("motion_interp_rate_hz", 30.0)
+        self.declare_parameter("fpv_enabled", True)
+        self.declare_parameter("fpv_topic", "/drone/fpv/image")
+        self.declare_parameter("fpv_frame", "drone_fpv")
+        self.declare_parameter("fpv_width", 240)
+        self.declare_parameter("fpv_height", 160)
+        self.declare_parameter("fpv_fov_deg", 90.0)
+        self.declare_parameter("fpv_max_range_cells", 18.0)
+        self.declare_parameter("fpv_cam_height", 1.2)
+        self.declare_parameter("fpv_forward_offset", 0.35)
 
         self.frame_id = str(self.get_parameter("frame_id").value)
         self.record_gif = bool(self.get_parameter("record_gif").value)
@@ -540,6 +551,15 @@ class VizNode(Node):
         self.motion_interp_enabled = bool(self.get_parameter("motion_interp_enabled").value)
         self.motion_interp_step_seconds = float(self.get_parameter("motion_interp_step_seconds").value)
         self.motion_interp_rate_hz = float(self.get_parameter("motion_interp_rate_hz").value)
+        self.fpv_enabled = bool(self.get_parameter("fpv_enabled").value)
+        self.fpv_topic = str(self.get_parameter("fpv_topic").value)
+        self.fpv_frame = str(self.get_parameter("fpv_frame").value)
+        self.fpv_width = int(self.get_parameter("fpv_width").value)
+        self.fpv_height = int(self.get_parameter("fpv_height").value)
+        self.fpv_fov_deg = float(self.get_parameter("fpv_fov_deg").value)
+        self.fpv_max_range_cells = float(self.get_parameter("fpv_max_range_cells").value)
+        self.fpv_cam_height = float(self.get_parameter("fpv_cam_height").value)
+        self.fpv_forward_offset = float(self.get_parameter("fpv_forward_offset").value)
         gif_dir = str(self.get_parameter("gif_out_dir").value)
 
         from drone_grid_sim._bootstrap import DEFAULT_REPO_ROOT
@@ -586,6 +606,8 @@ class VizNode(Node):
         # Keep only latest dynamic frame to avoid marker lag behind point clouds.
         self.pub_dynamic = self.create_publisher(MarkerArray, "/drone/markers_dynamic", 1)
         self.pub_render_ack = self.create_publisher(Int32, self.render_ack_topic, 10)
+        self.pub_fpv_image = self.create_publisher(Image, self.fpv_topic, 1)
+        self._tf_broadcaster = TransformBroadcaster(self)
 
         # Individual marker publishers for trajectory group
         self.pub_drone_marker = self.create_publisher(Marker, "/drone/drone_marker", 1)
@@ -616,6 +638,7 @@ class VizNode(Node):
         self._interp_start_ns = 0
         interp_period = 1.0 / max(self.motion_interp_rate_hz, 1.0)
         self._interp_timer = self.create_timer(interp_period, self._on_interp_tick)
+        self._fpv_yaw_grid = 0.0
 
     def _enter_episode(self, ep: int, reset_recorder: bool = True) -> None:
         """Apply episode boundary atomically for both event-first and snapshot-first order."""
@@ -626,6 +649,7 @@ class VizNode(Node):
         self._need_static_refresh = True
         self._last_step_no = -1
         self._stable_explored_mask = None
+        self._fpv_yaw_grid = 0.0
         if reset_recorder and self.recorder is not None:
             self.recorder.reset(episode_id=ep)
 
@@ -723,6 +747,7 @@ class VizNode(Node):
         hpos = snap["hero"]["pos"]
         self._trail.append((int(hpos[0]), int(hpos[1])))
         self._publish_dynamic(snap)
+        self._publish_fpv_camera(snap)
 
         if self.recorder is not None:
             self._record_frame(snap)
@@ -790,6 +815,133 @@ class VizNode(Node):
         hero["pos"] = (ix, iz)
         snap["hero"] = hero
         self._publish_dynamic(snap)
+        self._publish_fpv_camera(snap)
+
+    def _publish_fpv_camera(self, snap: dict) -> None:
+        if not self.fpv_enabled:
+            return
+
+        hero = snap.get("hero", {})
+        hpos = hero.get("pos", (0.0, 0.0)) if isinstance(hero, dict) else (0.0, 0.0)
+        hx = float(hpos[0])
+        hz = float(hpos[1])
+        dx, dz = tuple(snap.get("last_action_delta", (0, 0)))
+        if abs(int(dx)) + abs(int(dz)) > 0:
+            self._fpv_yaw_grid = math.atan2(float(dz), float(dx))
+
+        img = self._render_fpv_depth_image(snap, hx, hz, self._fpv_yaw_grid)
+        now = self.get_clock().now().to_msg()
+
+        msg = Image()
+        msg.header.stamp = now
+        msg.header.frame_id = self.fpv_frame
+        msg.height = int(img.shape[0])
+        msg.width = int(img.shape[1])
+        msg.encoding = "mono8"
+        msg.is_bigendian = False
+        msg.step = int(img.shape[1])
+        msg.data = img.tobytes()
+        self.pub_fpv_image.publish(msg)
+
+        self._broadcast_fpv_tf(hx, hz, self._fpv_yaw_grid, now)
+
+    def _broadcast_fpv_tf(self, hx: float, hz: float, yaw_grid: float, stamp) -> None:
+        dir_x = math.cos(yaw_grid)
+        dir_y = -math.sin(yaw_grid)
+        tx = hx + self.fpv_forward_offset * dir_x
+        ty = -hz + self.fpv_forward_offset * dir_y
+        yaw_map = math.atan2(dir_y, dir_x)
+
+        tf_msg = TransformStamped()
+        tf_msg.header.stamp = stamp
+        tf_msg.header.frame_id = self.frame_id
+        tf_msg.child_frame_id = self.fpv_frame
+        tf_msg.transform.translation.x = float(tx)
+        tf_msg.transform.translation.y = float(ty)
+        tf_msg.transform.translation.z = float(self.fpv_cam_height)
+        tf_msg.transform.rotation.x = 0.0
+        tf_msg.transform.rotation.y = 0.0
+        tf_msg.transform.rotation.z = math.sin(yaw_map * 0.5)
+        tf_msg.transform.rotation.w = math.cos(yaw_map * 0.5)
+        self._tf_broadcaster.sendTransform(tf_msg)
+
+    def _render_fpv_depth_image(self, snap: dict, hx: float, hz: float, yaw_grid: float) -> np.ndarray:
+        grid = snap.get("grid", [])
+        height_map = snap.get("height_map")
+        width = max(64, self.fpv_width)
+        height = max(48, self.fpv_height)
+        max_range = max(2.0, self.fpv_max_range_cells)
+        fov = math.radians(max(20.0, min(140.0, self.fpv_fov_deg)))
+
+        img = np.full((height, width), 18, dtype=np.uint8)
+        horizon = height // 2
+        img[:horizon, :] = 8
+        img[horizon:, :] = 20
+
+        for col in range(width):
+            u = (col / float(max(1, width - 1))) - 0.5
+            ray_angle = yaw_grid + u * fov
+            dist, obs_h = self._raycast_grid(grid, height_map, hx, hz, ray_angle, max_range)
+            # Build taller silhouettes by scaling with obstacle height and inverse depth.
+            wall_h = int((height * 1.25 * max(1.0, obs_h)) / max(0.45, dist * 3.5))
+            wall_h = min(height, max(2, wall_h))
+            top = max(0, horizon - wall_h // 2)
+            bot = min(height, top + wall_h)
+
+            # Depth map intensity: near -> bright, far -> dark.
+            depth_gray = int(max(0.0, min(1.0, 1.0 - dist / max_range)) * 235.0) + 20
+            img[top:bot, col] = np.uint8(depth_gray)
+
+            # Ground depth gradient beneath obstacle slice.
+            if bot < height:
+                tail = np.linspace(max(depth_gray - 35, 0), 12, num=(height - bot), dtype=np.uint8)
+                img[bot:height, col] = np.maximum(img[bot:height, col], tail)
+
+        return img
+
+    def _raycast_grid(
+        self,
+        grid: List[List[int]],
+        height_map: Optional[List[List[float]]],
+        hx: float,
+        hz: float,
+        angle: float,
+        max_range: float,
+    ) -> Tuple[float, float]:
+        if not grid:
+            return (max_range, 1.0)
+        h = len(grid)
+        w = len(grid[0]) if h > 0 else 0
+        if w <= 0:
+            return (max_range, 1.0)
+
+        step = 0.20
+        dx = math.cos(angle)
+        dz = math.sin(angle)
+        t = step
+        while t <= max_range:
+            x = hx + dx * t
+            z = hz + dz * t
+            ix = int(round(x))
+            iz = int(round(z))
+            if ix < 0 or ix >= w or iz < 0 or iz >= h:
+                return (t, 1.0)
+            if int(grid[iz][ix]) != 0:
+                hit_h = self._sample_obstacle_height(height_map, ix, iz)
+                return (t, hit_h)
+            t += step
+        return (max_range, 1.0)
+
+    def _sample_obstacle_height(self, height_map: Optional[List[List[float]]], x: int, z: int) -> float:
+        if height_map is None:
+            return _building_height(x, z)
+        try:
+            h = float(height_map[z][x])
+        except Exception:
+            h = 0.0
+        if h <= 0.0:
+            h = _building_height(x, z)
+        return h
 
     def _on_event(self, msg: String) -> None:
         try:
