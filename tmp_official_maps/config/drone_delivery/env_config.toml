@@ -1,0 +1,40 @@
+# ============================================================================
+# Drone Delivery Environment Configuration
+# ============================================================================
+# Purpose:
+# - When you click Play in the editor, the runtime can load this file and pass
+#   it into Lua reset(user_config).
+# - Only the fields under [environment] are read.
+# Note:
+# - 当前编辑器脚本（scripts/gameplay/drone_delivery/main.lua）会消费本文件中大多数 gameplay 字段。
+# - `name`/`version` 仅用于标识，不影响运行逻辑。
+# - 生效对齐清单见 docs/gameplay_config_alignment.md
+# ============================================================================
+
+[environment]
+name = "drone_delivery"
+version = "1.0"
+
+# Map
+map_random = true
+map_id = 1
+start_random = false
+start = 1
+
+# Episode
+max_step = 1000
+random_seed = -1            # -1 表示自动随机种子；指定正整数可复现随机结果
+
+# Gameplay knobs
+# These are used in scripts/gameplay/drone_delivery/main.lua (see DEFAULT_CONFIG).
+drone_count = 4
+station_count = 10
+charger_count = 3
+
+# Physics / energy
+fly_over_height = 2.0
+battery_max = 100
+battery_per_step = 1
+
+# Score
+score_per_delivery = 100

@@ -1,0 +1,90 @@
+{
+  "version": "1.0",
+  "cell_types": [
+    {
+      "id": 0,
+      "name": "walkable",
+      "display_name": "可通行",
+      "color": [200, 200, 200, 255],
+      "walkable": true,
+      "move_cost": 1.0,
+      "description": "可通行区域"
+    },
+    {
+      "id": 1,
+      "name": "wall",
+      "display_name": "不可通行",
+      "color": [60, 60, 60, 255],
+      "walkable": false,
+      "move_cost": 0.0,
+      "description": "不可通行的墙壁区域"
+    },
+    {
+      "id": 2,
+      "name": "dirt",
+      "display_name": "污渍",
+      "color": [139, 69, 19, 255],
+      "walkable": true,
+      "move_cost": 1.0,
+      "description": "污渍地面（robot_vacuum 可清扫）"
+    },
+    {
+      "id": 3,
+      "name": "road",
+      "display_name": "道路",
+      "color": [110, 110, 110, 255],
+      "walkable": true,
+      "move_cost": 0.8,
+      "description": "道路（基础可行走区域）"
+    },
+    {
+      "id": 4,
+      "name": "bridge",
+      "display_name": "桥",
+      "color": [150, 110, 60, 255],
+      "walkable": true,
+      "move_cost": 1.0,
+      "description": "桥（基础可行走区域）"
+    },
+    {
+      "id": 5,
+      "name": "grass",
+      "display_name": "草地",
+      "color": [100, 180, 80, 255],
+      "walkable": true,
+      "move_cost": 1.0,
+      "description": "草地（可通行装饰性地形）"
+    },
+    {
+      "id": 6,
+      "name": "obstacle",
+      "display_name": "障碍物",
+      "color": [120, 80, 60, 255],
+      "walkable": false,
+      "move_cost": 0.0,
+      "description": "障碍物区域（不可通行，区别于墙壁）"
+    },
+    {
+      "id": 7,
+      "name": "furniture",
+      "display_name": "家具",
+      "color": [160, 82, 45, 255],
+      "walkable": false,
+      "move_cost": 0.0,
+      "description": "家具区域（不可通行）"
+    },
+    {
+      "id": 8,
+      "name": "warehouse_ui",
+      "display_name": "仓库UI",
+      "color": [180, 120, 60, 200],
+      "walkable": true,
+      "move_cost": 1.0,
+      "description": "仓库区域可视化（可通行）",
+      "metadata": {
+        "role": "warehouse_ui"
+      }
+    }
+  ]
+}
+

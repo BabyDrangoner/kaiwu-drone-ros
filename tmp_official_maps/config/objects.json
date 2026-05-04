@@ -1,0 +1,413 @@
+{
+  "version": "1.0",
+  "objects": [
+    {
+      "id": 100,
+      "name": "walkable",
+      "display_name": "可通行",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [220, 220, 220, 50],
+      "blocking": false,
+      "properties": {},
+      "tags": ["common"],
+      "description": "可通行地板（刷子）"
+
+    },
+    {
+      "id": 101,
+      "name": "unwalkable",
+      "display_name": "不可通行",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [80, 80, 80, 255],
+      "blocking": true,
+      "properties": {},
+      "tags": ["common"],
+      "description": "不可通行区域"
+    },
+    {
+      "id": 102,
+      "name": "dirt_floor",
+      "display_name": "污渍",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [139, 69, 19, 255],
+      "blocking": false,
+      "properties": {},
+      "components": ["surface.dirt"],
+      "tags": ["robot_vacuum"],
+      "description": "污渍地板（robot_vacuum 可清扫）"
+    },
+    {
+      "id": 103,
+      "name": "eraser",
+      "display_name": "橡皮擦",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [220, 220, 220, 80],
+      "blocking": false,
+      "properties": {},
+      "tags": ["common"],
+      "description": "擦除物体并恢复为可通行"
+    },
+    {
+      "id": 104,
+      "name": "road",
+      "display_name": "道路",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [110, 110, 110, 140],
+      "blocking": false,
+      "properties": {},
+      "tags": ["common"],
+      "description": "道路（刷子，可通行）"
+    },
+    {
+      "id": 105,
+      "name": "bridge",
+      "display_name": "桥",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [150, 110, 60, 160],
+      "blocking": false,
+      "properties": {},
+      "tags": ["common"],
+      "description": "桥（刷子，可通行）"
+    },
+    {
+      "id": 106,
+      "name": "grass_brush",
+      "display_name": "草地",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [100, 180, 80, 180],
+      "blocking": false,
+      "properties": {},
+      "tags": ["drone_delivery", "common"],
+      "description": "草地（刷子，可通行）"
+    },
+    {
+      "id": 107,
+      "name": "paint_bucket",
+      "display_name": "油漆桶",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [255, 215, 0, 180],
+      "blocking": false,
+      "properties": {},
+      "tags": ["common"],
+      "description": "油漆桶（连通区域填充）"
+    },
+    {
+      "id": 1,
+      "name": "rock",
+
+      "display_name": "岩石",
+      "category": "Obstacle",
+      "size": [1, 1],
+      "color": [128, 128, 128, 255],
+      "blocking": true,
+      "properties": {
+        "health": "100",
+        "destructible": "true",
+        "height": "1.0"
+      },
+      "tags": ["common"],
+      "description": "普通岩石障碍物"
+    },
+    {
+      "id": 2,
+      "name": "tree",
+      "display_name": "树木",
+      "category": "Obstacle",
+      "size": [1, 1],
+      "color": [34, 100, 34, 255],
+      "blocking": true,
+      "properties": {
+        "health": "50",
+        "destructible": "true",
+        "height": "2.0"
+      },
+      "tags": ["common"],
+      "description": "树木障碍物"
+    },
+
+    {
+      "id": 3,
+      "name": "chest",
+      "display_name": "宝箱",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [184, 134, 11, 255],
+      "blocking": false,
+      "properties": {
+        "loot_table": "common",
+        "locked": "false"
+      },
+      "tags": ["gorge_chase"],
+      "description": "可交互的宝箱"
+    },
+    {
+      "id": 4,
+      "name": "door",
+      "display_name": "门",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [139, 90, 43, 255],
+      "blocking": true,
+
+      "properties": {
+        "locked": "false",
+        "key_id": ""
+      },
+      "tags": ["hidden"],
+      "description": "可开关的门"
+    },
+    {
+      "id": 6,
+      "name": "enemy_spawn",
+      "display_name": "敌人出生点",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [255, 0, 0, 255],
+      "blocking": false,
+      "properties": {
+        "enemy_type": "default",
+        "spawn_count": "1",
+        "respawn_time": "60"
+      },
+      "components": ["spawn.enemy"],
+      "tags": ["gorge_chase"],
+      "description": "敌人出生位置"
+    },
+
+    {
+      "id": 12,
+      "name": "npc_spawn",
+      "display_name": "NPC出生点",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [255, 165, 0, 255],
+      "blocking": false,
+      "properties": {
+        "activity_range": "21",
+        "movement_speed": "2.0"
+      },
+      "tags": ["hidden"],
+      "description": "NPC机器人出生位置"
+    },
+    {
+      "id": 16,
+      "name": "spawn_point_player",
+      "display_name": "小悟出生点",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [0, 255, 0, 255],
+      "blocking": false,
+      "properties": {
+        "spawn_type": "player",
+        "spawn_id": "player"
+      },
+      "tags": ["robot_vacuum"],
+      "description": "robot_vacuum 玩家出生点"
+    },
+    {
+      "id": 17,
+      "name": "spawn_point_npc",
+      "display_name": "官方机器人出生点",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [255, 0, 0, 255],
+      "blocking": false,
+      "properties": {
+        "spawn_type": "npc",
+        "activity_range": "21"
+      },
+      "tags": ["robot_vacuum"],
+      "description": "robot_vacuum NPC 出生点"
+    },
+    {
+      "id": 18,
+      "name": "dirt_1x1",
+      "display_name": "污渍(1x1)",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [160, 82, 45, 255],
+      "blocking": false,
+      "properties": {
+        "clean_value": "10",
+        "clean_time": "0.0"
+      },
+      "components": ["surface.dirt"],
+      "tags": ["robot_vacuum"],
+      "description": "污渍（1x1），robot_vacuum 使用"
+    },
+    {
+      "id": 20,
+      "name": "charger_1x1",
+      "display_name": "充电桩(1x1)",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [255, 215, 0, 255],
+      "blocking": false,
+      "properties": {
+        "charge_rate": "20.0",
+        "charge_range": "1.5"
+      },
+      "components": ["facility.charger_point", "facility.charger_unit"],
+      "tags": ["robot_vacuum", "drone_delivery", "drone"],
+      "description": "通用充电桩点位（robot_vacuum 与 drone_delivery 统一使用；支持 size_override 作为占地）"
+    },
+    {
+      "id": 21,
+      "name": "drone",
+      "display_name": "无人机",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [0, 200, 255, 255],
+      "blocking": false,
+      "properties": {
+        "spawn_type": "drone",
+        "spawn_id": "drone"
+      },
+      "components": ["spawn.drone_player"],
+      "tags": ["drone", "drone_delivery"],
+      "description": "无人机出生点（drone 玩法使用）"
+    },
+    {
+      "id": 27,
+      "name": "drone_official_spawn",
+      "display_name": "官方无人机出生点",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [255, 90, 90, 255],
+      "blocking": false,
+      "properties": {
+        "spawn_type": "drone_official",
+        "patrol_radius": "10"
+      },
+      "components": ["spawn.drone_official"],
+      "tags": ["drone", "drone_delivery"],
+      "description": "官方无人机出生点（应放置在道路上；以该点为中心 21*21 范围随机巡逻）"
+    },
+    {
+      "id": 22,
+      "name": "warehouse",
+
+      "display_name": "仓库",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [140, 90, 40, 255],
+      "blocking": false,
+      "properties": {
+        "role": "warehouse",
+        "height": "1.0"
+      },
+      "components": ["facility.warehouse"],
+      "tags": ["drone", "drone_delivery"],
+      "description": "仓库点位（默认 1x1；进入后补满 3 个包裹）"
+
+    },
+
+    {
+      "id": 23,
+      "name": "penguin_station_point",
+      "display_name": "企鹅驿站点位",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [170, 90, 255, 255],
+      "blocking": false,
+      "properties": {
+        "station_id": "1",
+        "height": "1.0"
+      },
+      "components": ["facility.station_point"],
+      "tags": ["drone", "drone_delivery"],
+      "description": "企鹅驿站生成点（station_id=1..10；运行时按配置抽取并生成驿站）"
+    },
+    {
+      "id": 24,
+      "name": "drone_charger_point",
+      "display_name": "无人机充电桩点位",
+      "category": "Spawn",
+      "size": [1, 1],
+      "color": [255, 215, 0, 255],
+      "blocking": false,
+      "properties": {
+        "charge_range": "1.0",
+        "height": "0.5"
+      },
+      "components": ["facility.charger_point"],
+      "tags": ["drone", "drone_delivery", "deprecated", "hidden"],
+      "description": "兼容旧地图的别名（已弃用）：请统一改用 ID=20 (charger_1x1)"
+    },
+    {
+      "id": 25,
+      "name": "high_building",
+      "display_name": "高楼(测试高度)",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [90, 90, 90, 255],
+      "blocking": true,
+      "properties": {
+        "height": "6.0"
+      },
+      "tags": ["drone", "drone_delivery"],
+      "description": "高楼（1x1；用于测试无人机飞越高度阈值；高度过高时不可通过）"
+    },
+    {
+      "id": 29,
+      "name": "grass",
+      "display_name": "草地",
+      "category": "Interactive",
+      "size": [1, 1],
+      "color": [100, 180, 80, 180],
+      "blocking": false,
+      "properties": {},
+      "tags": ["drone_delivery", "common"],
+      "description": "草地（可通行装饰性地形）"
+    },
+    {
+      "id": 108,
+      "name": "obstacle_brush",
+      "display_name": "障碍物",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [120, 80, 60, 200],
+      "blocking": true,
+      "properties": {},
+      "tags": ["common"],
+      "description": "障碍物（刷子，不可通行，区别于墙壁）"
+    },
+    {
+      "id": 109,
+      "name": "furniture_brush",
+      "display_name": "家具",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [160, 82, 45, 200],
+      "blocking": true,
+      "properties": {},
+      "tags": ["common"],
+      "description": "家具（刷子，不可通行）"
+    },
+    {
+      "id": 110,
+      "name": "warehouse_ui_brush",
+      "display_name": "仓库UI",
+      "category": "GridType",
+      "size": [1, 1],
+      "color": [180, 120, 60, 200],
+      "blocking": false,
+      "properties": {},
+      "tags": ["drone_delivery"],
+      "description": "仓库区域可视化（刷子，可通行）"
+    }
+
+  ]
+}
+
+
+
+

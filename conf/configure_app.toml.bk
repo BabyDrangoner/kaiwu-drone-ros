@@ -1,0 +1,41 @@
+[app]
+
+# ========================================================================
+# DIY 训练配置 (保持 blank 模板字段集, 仅调 batch_size 以适配 CPU)
+# ========================================================================
+
+# 样本池容量 (32C/61G 机器, 16 aisrv 并发采样, 放大到 40000 充分利用内存)
+replay_buffer_capacity = 40000
+
+# 样本池达到该比例时触发训练
+preload_ratio = 1.0
+
+# 样本移除 / 采样策略
+reverb_remover = "reverb.selectors.Fifo"
+reverb_sampler = "reverb.selectors.Uniform"
+
+# 数据插入与采样的动态平衡策略: MinSize 适合 CPU 本地训练
+reverb_rate_limiter = "MinSize"
+reverb_samples_per_insert = 5
+reverb_error_buffer = 5
+
+# Learner 训练 batch (32C CPU, learner 放开 8 线程, batch 放大到 1024 提升稳定性)
+train_batch_size = 1024
+
+# 训练间隔多少步输出模型参数文件
+dump_model_freq = 100
+
+# Learner 推送模型至模型池 / Actor 拉取模型的频次 (分钟)
+model_file_sync_per_minutes = 1
+
+# 每次推送 / 拉取模型参数文件的数量
+modelpool_max_save_model_count = 1
+
+# 预加载模型 —— 从 ckpt-1301997 续训 (2026-04-26 17:37 备份)
+# 同时新增 NPC-aware action mask (距离判定版), 硬性阻止走进 NPC 可达危险圈
+# 路径须是容器内可访问的绝对路径; 宿主机工作目录通过 volume 挂到容器 /workspace/code
+preload_model = true
+preload_model_dir = "/workspace/code/agent_diy/ckpt"
+preload_model_id = 1301997
+eval_model_dir = "/data/projects/drone_delivery/ckpt"
+eval_model_id = "1301997"

@@ -1,0 +1,5 @@
+[console_scripts]
+grid_env_node = drone_grid_sim.nodes.grid_env_node:main
+motion_controller_node = drone_grid_sim.nodes.motion_controller_node:main
+policy_node = drone_grid_sim.nodes.policy_node:main
+viz_node = drone_grid_sim.nodes.viz_node:main

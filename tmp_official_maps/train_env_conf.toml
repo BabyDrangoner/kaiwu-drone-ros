@@ -1,0 +1,28 @@
+[env_conf]
+# Maps used for training, can be customized to select desired maps for training, e.g., if only maps 1 and 2 are desired, keep only [1,2] in the array
+# 训练使用的地图，可自定义选择期望用来训练的地图，如只期望使用1、2号地图训练数组内仅保留[1,2]即可
+map = [1]
+
+# Whether to randomly select maps. Boolean value, true means randomly select one map from 10 maps each round, false means select maps sequentially for training
+# 是否随机抽取地图。布尔值，true表示每局从10张地图中随机抽取一张，false表示按顺序抽取地图训练
+map_random = false
+
+# Number of official drones. Configurable range is 1-4 (integer), when configured less than 4, the corresponding number of spawn points will be randomly selected from available drone spawn points on each map
+# 官方无人机数量。可配置范围为1～4（整数），当配置小于4时，将从每地图可生成官方无人机的点位随机选择对应数量的点位生成。
+drone_count = 4
+
+# Number of charging stations. Configurable range is 1-4 (integer). When configured less than 4, the corresponding number of spawn points will be randomly selected from available charger spawn points on each map
+# 充电桩数量。可配置范围为1～4（整数）。当配置小于4时，将从每地图可生成官方无人机的点位随机选择对应数量的点位生成。
+charger_count = 4
+
+# Number of penguin post stations. Configurable range is 3-10 (integer). When configured less than 10, the corresponding number of spawn points will be randomly selected from available post station spawn points on each map
+# 企鹅驿站数量。可配置范围为3～10（整数）。当配置小于10时，将从每地图可生成企鹅驿站的点位随机选择对应数量的点位生成。
+station_count = 10
+
+# Maximum number of steps, the task ends when the prediction steps in a single round reach the maximum. Configurable range is 1-2000
+# 最大步数，单局任务预测步数达到最大步数时，任务结束。可配置范围为1～2000。
+max_step = 1000
+
+# Maximum energy, configurable range is 1-2000
+# 最大电量, 可配置范围为1～2000。
+battery_max = 500

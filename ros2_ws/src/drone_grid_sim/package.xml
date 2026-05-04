@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>drone_grid_sim</name>
+  <version>0.1.0</version>
+  <description>
+    Closed-loop ROS 2 wrapper around the kaiwu drone-delivery agent_diy:
+    grid env -> policy -> discrete motion controller -> RViz + GIF viz.
+  </description>
+  <maintainer email="dev@example.com">drone-dev</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

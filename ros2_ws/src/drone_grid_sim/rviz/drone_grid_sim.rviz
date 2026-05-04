@@ -1,0 +1,267 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /OccupancyMap1
+        - /Simulators1
+      Splitter Ratio: 0.64
+    Tree Height: 480
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Tool Properties
+    Expanded:
+      - /2D Nav Goal1
+    Name: Tool Properties
+    Splitter Ratio: 0.588
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz_common/Time
+    Name: Time
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 2.0
+      Name: Axes
+      Radius: 0.05
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 20
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: EntityMarkers
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /drone/markers_static
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: DynamicMarkers
+      Namespaces:
+        {}
+      Topic:
+        Depth: 100
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /drone/markers_dynamic
+      Value: true
+    - Alpha: 0.05
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1.25
+        Min Value: -2.3
+        Value: false
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 161; 161; 161
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 0; 0; 0
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: GroundTruth
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.1
+      Style: Flat Squares
+      Topic: /drone/ground_truth_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1.25
+        Min Value: -2.3
+        Value: false
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 164; 0; 0
+      Color Transformer: AxisColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 0; 0; 0
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: ExploredMap
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 15
+      Size (m): 0.125
+      Style: Flat Squares
+      Topic: /drone/occupancy_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 0.2
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1.25
+        Min Value: -2.3
+        Value: false
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 106; 106; 106
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 0; 0; 0
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: UnknownFog
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.1
+      Style: Flat Squares
+      Topic: /drone/unknown_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Marker Topic: /drone/drone_marker
+      Name: Drone
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Marker Topic: /drone/trail_marker
+      Name: Trail
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 255; 255; 243
+    Default Light: true
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Icon: false
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+    - Class: rviz_default_plugins/SetInitialPose
+      Theta std deviation: 0.2618
+      Topic: /initialpose
+      X std deviation: 0.5
+      Y std deviation: 0.5
+    - Class: rviz_default_plugins/SetGoal
+      Topic: /move_base_simple/goal
+    - Class: rviz_default_plugins/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/ThirdPersonFollower
+      Distance: 80.0
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 64.0
+        Y: -64.0
+        Z: 2.0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: RACER_Perspective
+      Near Clip Distance: 0.01
+      Pitch: 1.35
+      Target Frame: <Fixed Frame>
+      Value: ThirdPersonFollower (rviz_default_plugins)
+      Yaw: 3.14
+    Saved:
+      - Class: rviz_default_plugins/TopDownOrtho
+        Invert Z Axis: false
+        Name: TopDown2D
+        Near Clip Distance: 0.01
+        Scale: 7.0
+        Target Frame: <Fixed Frame>
+        Value: TopDownOrtho (rviz_default_plugins)
+        X: 64.0
+        Y: -64.0
+      - Class: rviz_default_plugins/Orbit
+        Distance: 50.0
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.06
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Focal Point:
+          X: 0.0
+          Y: 0.0
+          Z: 2.0
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05
+        Invert Z Axis: false
+        Name: Orbit_Perspective
+        Near Clip Distance: 0.01
+        Pitch: 1.02
+        Target Frame: <Fixed Frame>
+        Value: Orbit (rviz_default_plugins)
+        Yaw: 0.84
+Window Geometry:
+  Height: 900
+  Width: 1280
+  X: 0
+  Y: 0
