@@ -56,6 +56,12 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument("record_gif", default_value="false"),
         DeclareLaunchArgument("gif_out_dir", default_value="ros2_ws/gif_out"),
         DeclareLaunchArgument("show_all_elements", default_value="false"),
+        DeclareLaunchArgument("motion_preview_enabled", default_value="true"),
+        DeclareLaunchArgument("motion_preview_steps", default_value="10"),
+        DeclareLaunchArgument("motion_preview_accel", default_value="0.35"),
+        DeclareLaunchArgument("motion_preview_decel", default_value="0.45"),
+        DeclareLaunchArgument("motion_preview_max_speed", default_value="1.4"),
+        DeclareLaunchArgument("motion_preview_turn_blend", default_value="0.40"),
         # RACER-style frame_id
         DeclareLaunchArgument("frame_id", default_value="map"),
         # rviz:=true  launches RViz2 for interactive 2D city-grid view.
@@ -137,6 +143,12 @@ def generate_launch_description() -> LaunchDescription:
             "show_all_elements": ParameterValue(LaunchConfiguration("show_all_elements"), value_type=bool),
             "render_ack_topic": ParameterValue(LaunchConfiguration("render_ack_topic"), value_type=str),
             "motion_interp_step_seconds": LaunchConfiguration("step_seconds"),
+            "motion_preview_enabled": ParameterValue(LaunchConfiguration("motion_preview_enabled"), value_type=bool),
+            "motion_preview_steps": LaunchConfiguration("motion_preview_steps"),
+            "motion_preview_accel": LaunchConfiguration("motion_preview_accel"),
+            "motion_preview_decel": LaunchConfiguration("motion_preview_decel"),
+            "motion_preview_max_speed": LaunchConfiguration("motion_preview_max_speed"),
+            "motion_preview_turn_blend": LaunchConfiguration("motion_preview_turn_blend"),
         }],
     )
 

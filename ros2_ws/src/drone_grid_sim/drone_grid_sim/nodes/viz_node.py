@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import collections
 import json
+import math
 import os
 import struct
 import time
@@ -530,6 +531,12 @@ class VizNode(Node):
         self.declare_parameter("motion_interp_enabled", True)
         self.declare_parameter("motion_interp_step_seconds", 0.2)
         self.declare_parameter("motion_interp_rate_hz", 30.0)
+        self.declare_parameter("motion_preview_enabled", True)
+        self.declare_parameter("motion_preview_steps", 10)
+        self.declare_parameter("motion_preview_accel", 0.35)
+        self.declare_parameter("motion_preview_decel", 0.45)
+        self.declare_parameter("motion_preview_max_speed", 1.4)
+        self.declare_parameter("motion_preview_turn_blend", 0.40)
 
         self.frame_id = str(self.get_parameter("frame_id").value)
         self.record_gif = bool(self.get_parameter("record_gif").value)
@@ -540,6 +547,12 @@ class VizNode(Node):
         self.motion_interp_enabled = bool(self.get_parameter("motion_interp_enabled").value)
         self.motion_interp_step_seconds = float(self.get_parameter("motion_interp_step_seconds").value)
         self.motion_interp_rate_hz = float(self.get_parameter("motion_interp_rate_hz").value)
+        self.motion_preview_enabled = bool(self.get_parameter("motion_preview_enabled").value)
+        self.motion_preview_steps = int(self.get_parameter("motion_preview_steps").value)
+        self.motion_preview_accel = float(self.get_parameter("motion_preview_accel").value)
+        self.motion_preview_decel = float(self.get_parameter("motion_preview_decel").value)
+        self.motion_preview_max_speed = float(self.get_parameter("motion_preview_max_speed").value)
+        self.motion_preview_turn_blend = float(self.get_parameter("motion_preview_turn_blend").value)
         gif_dir = str(self.get_parameter("gif_out_dir").value)
 
         from drone_grid_sim._bootstrap import DEFAULT_REPO_ROOT
@@ -616,6 +629,12 @@ class VizNode(Node):
         self._interp_start_ns = 0
         interp_period = 1.0 / max(self.motion_interp_rate_hz, 1.0)
         self._interp_timer = self.create_timer(interp_period, self._on_interp_tick)
+        self._preview_snapshots: collections.deque = collections.deque(
+            maxlen=max(2, self.motion_preview_steps)
+        )
+        self._preview_last_pos: Optional[Tuple[float, float]] = None
+        self._preview_vx = 0.0
+        self._preview_vz = 0.0
 
     def _enter_episode(self, ep: int, reset_recorder: bool = True) -> None:
         """Apply episode boundary atomically for both event-first and snapshot-first order."""
@@ -626,6 +645,10 @@ class VizNode(Node):
         self._need_static_refresh = True
         self._last_step_no = -1
         self._stable_explored_mask = None
+        self._preview_snapshots.clear()
+        self._preview_last_pos = None
+        self._preview_vx = 0.0
+        self._preview_vz = 0.0
         if reset_recorder and self.recorder is not None:
             self.recorder.reset(episode_id=ep)
 
@@ -720,17 +743,21 @@ class VizNode(Node):
         self._interp_target = None
         self._interp_start_ns = 0
 
-        hpos = snap["hero"]["pos"]
+        display_snap = self._preview_motion_snap(snap)
+
+        hpos = display_snap["hero"]["pos"]
         self._trail.append((int(hpos[0]), int(hpos[1])))
-        self._publish_dynamic(snap)
+        self._publish_dynamic(display_snap)
 
         if self.recorder is not None:
-            self._record_frame(snap)
+            self._record_frame(display_snap)
 
         # Step-sync handshake: ACK this frame after rendering callbacks finish.
         self.pub_render_ack.publish(Int32(data=int(snap.get("step_no", 0))))
 
     def _on_cmd_vel(self, msg: Twist) -> None:
+        if self.motion_preview_enabled:
+            return
         if not self.motion_interp_enabled:
             return
         if self._latest_snap is None:
@@ -776,6 +803,8 @@ class VizNode(Node):
         return (ox + (tx - ox) * ratio, oz + (tz - oz) * ratio)
 
     def _on_interp_tick(self) -> None:
+        if self.motion_preview_enabled:
+            return
         if not self.motion_interp_enabled:
             return
         if self._latest_snap is None:
@@ -790,6 +819,111 @@ class VizNode(Node):
         hero["pos"] = (ix, iz)
         snap["hero"] = hero
         self._publish_dynamic(snap)
+
+    def _preview_motion_snap(self, snap: dict) -> dict:
+        if not self.motion_preview_enabled:
+            return snap
+
+        self._preview_snapshots.append(snap)
+        steps = max(2, self.motion_preview_steps)
+        if len(self._preview_snapshots) < steps:
+            hero = snap.get("hero", {})
+            hpos = hero.get("pos", (0, 0)) if isinstance(hero, dict) else (0, 0)
+            self._preview_last_pos = (float(hpos[0]), float(hpos[1]))
+            self._preview_vx = 0.0
+            self._preview_vz = 0.0
+            return snap
+
+        points = [
+            (
+                float(s.get("hero", {}).get("pos", (0, 0))[0]),
+                float(s.get("hero", {}).get("pos", (0, 0))[1]),
+            )
+            for s in self._preview_snapshots
+        ]
+        center = len(points) // 2
+        target = self._smooth_window_point(points, center)
+        px, pz = self._apply_preview_speed_profile(target)
+
+        out = dict(self._preview_snapshots[center])
+        hero = dict(out.get("hero", {}))
+        hero["pos"] = (px, pz)
+        out["hero"] = hero
+        return out
+
+    def _smooth_window_point(self, points: List[Tuple[float, float]], center: int) -> Tuple[float, float]:
+        sigma = max(1.0, len(points) / 4.0)
+        denom = 0.0
+        sx = 0.0
+        sz = 0.0
+        for i, (x, z) in enumerate(points):
+            d = float(i - center)
+            w = math.exp(-(d * d) / (2.0 * sigma * sigma))
+            denom += w
+            sx += w * x
+            sz += w * z
+        if denom <= 1e-9:
+            return points[center]
+        return (sx / denom, sz / denom)
+
+    def _apply_preview_speed_profile(self, target: Tuple[float, float]) -> Tuple[float, float]:
+        tx, tz = target
+        if self._preview_last_pos is None:
+            self._preview_last_pos = target
+            self._preview_vx = 0.0
+            self._preview_vz = 0.0
+            return target
+
+        cx, cz = self._preview_last_pos
+        dx = tx - cx
+        dz = tz - cz
+        dist = math.hypot(dx, dz)
+        if dist < 1e-6:
+            self._preview_vx = 0.0
+            self._preview_vz = 0.0
+            return (cx, cz)
+
+        cur_speed = math.hypot(self._preview_vx, self._preview_vz)
+        des_speed = min(max(0.0, self.motion_preview_max_speed), dist)
+        accel = max(0.01, self.motion_preview_accel)
+        decel = max(0.01, self.motion_preview_decel)
+        if des_speed >= cur_speed:
+            next_speed = min(des_speed, cur_speed + accel)
+        else:
+            next_speed = max(des_speed, cur_speed - decel)
+
+        des_dir_x = dx / dist
+        des_dir_z = dz / dist
+        if cur_speed > 1e-6:
+            cur_dir_x = self._preview_vx / cur_speed
+            cur_dir_z = self._preview_vz / cur_speed
+        else:
+            cur_dir_x = des_dir_x
+            cur_dir_z = des_dir_z
+        blend = max(0.0, min(1.0, self.motion_preview_turn_blend))
+        dir_x = (1.0 - blend) * cur_dir_x + blend * des_dir_x
+        dir_z = (1.0 - blend) * cur_dir_z + blend * des_dir_z
+        norm = math.hypot(dir_x, dir_z)
+        if norm > 1e-6:
+            dir_x /= norm
+            dir_z /= norm
+        else:
+            dir_x, dir_z = des_dir_x, des_dir_z
+
+        vx = dir_x * next_speed
+        vz = dir_z * next_speed
+        nx = cx + vx
+        nz = cz + vz
+
+        # Avoid overshooting the preview target.
+        if math.hypot(tx - cx, tz - cz) <= math.hypot(vx, vz) + 1e-6:
+            nx, nz = tx, tz
+            vx, vz = (tx - cx), (tz - cz)
+
+        self._preview_last_pos = (nx, nz)
+        self._preview_vx = vx
+        self._preview_vz = vz
+        return (nx, nz)
 
     def _on_event(self, msg: String) -> None:
         try:
