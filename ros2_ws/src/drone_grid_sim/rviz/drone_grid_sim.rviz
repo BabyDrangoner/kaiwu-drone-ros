@@ -210,8 +210,8 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 80.0
+      Class: rviz_default_plugins/Orbit
+      Distance: 96.0
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -220,15 +220,15 @@ Visualization Manager:
       Focal Point:
         X: 64.0
         Y: -64.0
-        Z: 2.0
+        Z: 0.0
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05
       Invert Z Axis: false
-      Name: RACER_Perspective
+      Name: RACER_BirdEye
       Near Clip Distance: 0.01
-      Pitch: 1.35
+      Pitch: 1.50
       Target Frame: <Fixed Frame>
-      Value: ThirdPersonFollower (rviz_default_plugins)
+      Value: Orbit (rviz_default_plugins)
       Yaw: 3.14
     Saved:
       - Class: rviz_default_plugins/TopDownOrtho
@@ -241,25 +241,25 @@ Visualization Manager:
         X: 64.0
         Y: -64.0
       - Class: rviz_default_plugins/Orbit
-        Distance: 50.0
+        Distance: 96.0
         Enable Stereo Rendering:
           Stereo Eye Separation: 0.06
           Stereo Focal Distance: 1
           Swap Stereo Eyes: false
           Value: false
         Focal Point:
-          X: 0.0
-          Y: 0.0
-          Z: 2.0
+          X: 64.0
+          Y: -64.0
+          Z: 0.0
         Focal Shape Fixed Size: true
         Focal Shape Size: 0.05
         Invert Z Axis: false
-        Name: Orbit_Perspective
+        Name: Orbit_Center_BirdEye
         Near Clip Distance: 0.01
-        Pitch: 1.02
+        Pitch: 1.50
         Target Frame: <Fixed Frame>
         Value: Orbit (rviz_default_plugins)
-        Yaw: 0.84
+        Yaw: 3.14
 Window Geometry:
   Height: 900
   Width: 1280

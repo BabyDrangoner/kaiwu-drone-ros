@@ -160,6 +160,42 @@ def _build_unexplored_cloud(
     return _make_pointcloud2(np.array(pts, dtype=np.float32), frame_id, stamp)
 
 
+def _build_explored_ground_points(
+    grid: List[List[int]],
+    explored_mask: List[List[int]],
+    show_all: bool,
+    ground_z: float = -0.28,
+    fill_step: float = 0.34,
+) -> np.ndarray:
+    """Build filled ground points for free cells that are currently visible/explored."""
+    H = len(grid)
+    W = len(grid[0]) if H > 0 else 0
+    pts: List[List[float]] = []
+
+    # Sample multiple points per cell to create a filled floor appearance.
+    half = 0.5
+    offsets: List[float] = []
+    cur = -half
+    while cur <= half + 1e-6:
+        offsets.append(cur)
+        cur += max(0.05, fill_step)
+
+    for zi in range(H):
+        for xi in range(W):
+            if grid[zi][xi]:
+                continue
+            if (not show_all) and (not explored_mask[zi][xi]):
+                continue
+            cx = float(xi)
+            cz = float(zi)
+            for ox in offsets:
+                for oz in offsets:
+                    pts.append([cx + ox, cz + oz, float(ground_z)])
+    if not pts:
+        return np.zeros((0, 3), dtype=np.float32)
+    return np.asarray(pts, dtype=np.float32)
+
+
 def _build_ground_truth_cloud(
     grid: List[List[int]],
     height_map: Optional[List[List[float]]],
@@ -712,7 +748,7 @@ class VizNode(Node):
         return (height, width, obstacle_count, 0)
 
     def _publish_pointcloud(self, snap: dict) -> None:
-        """Publish RACER-style PointCloud2: explored obstacles + unexplored fog."""
+        """Publish RACER-style PointCloud2: explored obstacles/ground + unexplored fog."""
         grid = snap["grid"]
         height_map = snap.get("height_map")
         explored = snap.get("explored_mask")
@@ -725,6 +761,11 @@ class VizNode(Node):
         explored_np = np.asarray(explored, dtype=np.int8)
         all_points = self._get_map_point_cloud(snap)
         visible_points = all_points if self.show_all_elements else filter_point_cloud_by_explored(all_points, explored_np)
+
+        # Make the floor reveal progressively with exploration as well.
+        ground_points = _build_explored_ground_points(grid, explored, self.show_all_elements)
+        if ground_points.size > 0:
+            visible_points = np.vstack((visible_points, ground_points))
 
         occ_msg = _build_explored_obstacle_cloud(
             visible_points, self.frame_id, now,
