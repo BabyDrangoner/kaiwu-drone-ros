@@ -29,7 +29,7 @@ from rclpy.qos import (
 )
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import ColorRGBA, String, Int32
-from geometry_msgs.msg import Point, Vector3
+from geometry_msgs.msg import Point, Vector3, Twist
 from visualization_msgs.msg import Marker, MarkerArray
 
 from drone_grid_sim._bootstrap import bootstrap
@@ -440,7 +440,7 @@ def mk_npc(nx: int, nz: int, mid: int, stamp, fid: str) -> List[Marker]:
     return [sp, disc]
 
 
-def mk_drone_quad(hx: int, hz: int, dx: int, dz: int,
+def mk_drone_quad(hx: float, hz: float, dx: int, dz: int,
                   batt: int, batt_max: int, stamp, fid: str) -> List[Marker]:
     markers: List[Marker] = []
     rx, ry, z0 = float(hx), -float(hz), 2.2
@@ -527,6 +527,9 @@ class VizNode(Node):
         self.declare_parameter("show_all_elements", True)
         self.declare_parameter("render_ack_topic", "/drone/render_ack")
         self.declare_parameter("episode_sync_wait_sec", 0.05)
+        self.declare_parameter("motion_interp_enabled", True)
+        self.declare_parameter("motion_interp_step_seconds", 0.2)
+        self.declare_parameter("motion_interp_rate_hz", 30.0)
 
         self.frame_id = str(self.get_parameter("frame_id").value)
         self.record_gif = bool(self.get_parameter("record_gif").value)
@@ -534,6 +537,9 @@ class VizNode(Node):
         self.show_all_elements = bool(self.get_parameter("show_all_elements").value)
         self.render_ack_topic = str(self.get_parameter("render_ack_topic").value)
         self.episode_sync_wait_sec = float(self.get_parameter("episode_sync_wait_sec").value)
+        self.motion_interp_enabled = bool(self.get_parameter("motion_interp_enabled").value)
+        self.motion_interp_step_seconds = float(self.get_parameter("motion_interp_step_seconds").value)
+        self.motion_interp_rate_hz = float(self.get_parameter("motion_interp_rate_hz").value)
         gif_dir = str(self.get_parameter("gif_out_dir").value)
 
         from drone_grid_sim._bootstrap import DEFAULT_REPO_ROOT
@@ -587,6 +593,7 @@ class VizNode(Node):
 
         self.create_subscription(String, "/drone/snapshot",      self._on_snapshot, snap_qos)
         self.create_subscription(String, "/drone/episode_event", self._on_event,    10)
+        self.create_subscription(Twist, "/drone/cmd_vel", self._on_cmd_vel, 10)
 
         self._episode = -1
         self._static_episode = -1
@@ -602,6 +609,13 @@ class VizNode(Node):
         self._stable_explored_mask: Optional[np.ndarray] = None
         self._pending_episode_snapshot: Optional[dict] = None
         self._pending_snapshot_monotonic = 0.0
+        self._latest_snap: Optional[dict] = None
+        self._interp_active = False
+        self._interp_origin: Optional[Tuple[float, float]] = None
+        self._interp_target: Optional[Tuple[float, float]] = None
+        self._interp_start_ns = 0
+        interp_period = 1.0 / max(self.motion_interp_rate_hz, 1.0)
+        self._interp_timer = self.create_timer(interp_period, self._on_interp_tick)
 
     def _enter_episode(self, ep: int, reset_recorder: bool = True) -> None:
         """Apply episode boundary atomically for both event-first and snapshot-first order."""
@@ -700,6 +714,12 @@ class VizNode(Node):
         # Point cloud updates every frame — explored_mask changes each step
         self._publish_pointcloud(snap)
 
+        self._latest_snap = snap
+        self._interp_active = False
+        self._interp_origin = None
+        self._interp_target = None
+        self._interp_start_ns = 0
+
         hpos = snap["hero"]["pos"]
         self._trail.append((int(hpos[0]), int(hpos[1])))
         self._publish_dynamic(snap)
@@ -709,6 +729,67 @@ class VizNode(Node):
 
         # Step-sync handshake: ACK this frame after rendering callbacks finish.
         self.pub_render_ack.publish(Int32(data=int(snap.get("step_no", 0))))
+
+    def _on_cmd_vel(self, msg: Twist) -> None:
+        if not self.motion_interp_enabled:
+            return
+        if self._latest_snap is None:
+            return
+
+        vx = float(msg.linear.x)
+        vy = float(msg.linear.y)
+        speed = abs(vx) + abs(vy)
+        if speed < 1e-6:
+            self._interp_active = False
+            return
+
+        now_ns = self.get_clock().now().nanoseconds
+        base = self._interp_pos(now_ns)
+        step_t = max(self.motion_interp_step_seconds, 1e-3)
+        dx = vx * step_t
+        dz = -vy * step_t
+        self._interp_origin = base
+        self._interp_target = (base[0] + dx, base[1] + dz)
+        self._interp_start_ns = now_ns
+        self._interp_active = True
+
+    def _interp_pos(self, now_ns: int) -> Tuple[float, float]:
+        if self._latest_snap is None:
+            return (0.0, 0.0)
+        hero = self._latest_snap.get("hero", {})
+        hpos = hero.get("pos", (0.0, 0.0)) if isinstance(hero, dict) else (0.0, 0.0)
+        default_pos = (float(hpos[0]), float(hpos[1]))
+
+        if (not self._interp_active) or self._interp_origin is None or self._interp_target is None:
+            return default_pos
+
+        dt_ns = max(int(self.motion_interp_step_seconds * 1e9), int(1e7))
+        ratio = (now_ns - self._interp_start_ns) / float(dt_ns)
+        if ratio >= 1.0:
+            self._interp_active = False
+            return self._interp_target
+        if ratio <= 0.0:
+            return self._interp_origin
+
+        ox, oz = self._interp_origin
+        tx, tz = self._interp_target
+        return (ox + (tx - ox) * ratio, oz + (tz - oz) * ratio)
+
+    def _on_interp_tick(self) -> None:
+        if not self.motion_interp_enabled:
+            return
+        if self._latest_snap is None:
+            return
+        if not self._interp_active:
+            return
+
+        now_ns = self.get_clock().now().nanoseconds
+        ix, iz = self._interp_pos(now_ns)
+        snap = dict(self._latest_snap)
+        hero = dict(self._latest_snap.get("hero", {}))
+        hero["pos"] = (ix, iz)
+        snap["hero"] = hero
+        self._publish_dynamic(snap)
 
     def _on_event(self, msg: String) -> None:
         try:
@@ -862,7 +943,7 @@ class VizNode(Node):
             arr.markers.append(trail_m)
 
         hpos = snap["hero"]["pos"]
-        hx, hz = int(hpos[0]), int(hpos[1])
+        hx, hz = float(hpos[0]), float(hpos[1])
         dx, dz = tuple(snap.get("last_action_delta", (0, 0)))
         drone_markers = mk_drone_quad(
             hx, hz, int(dx), int(dz),

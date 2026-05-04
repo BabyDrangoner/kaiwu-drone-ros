@@ -112,6 +112,7 @@ class MotionControllerNode(Node):
 
     def _twist_for_action(self, action: int) -> Twist:
         dx, dz = ACTION_DELTA[action]
+
         tw = Twist()
         tw.linear.x = dx / max(self.step_seconds, 1e-3)
         tw.linear.y = -dz / max(self.step_seconds, 1e-3)  # ROS y is north

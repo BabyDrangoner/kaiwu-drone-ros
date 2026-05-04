@@ -136,6 +136,7 @@ def generate_launch_description() -> LaunchDescription:
             "gif_out_dir": ParameterValue(LaunchConfiguration("gif_out_dir"), value_type=str),
             "show_all_elements": ParameterValue(LaunchConfiguration("show_all_elements"), value_type=bool),
             "render_ack_topic": ParameterValue(LaunchConfiguration("render_ack_topic"), value_type=str),
+            "motion_interp_step_seconds": LaunchConfiguration("step_seconds"),
         }],
     )
 
